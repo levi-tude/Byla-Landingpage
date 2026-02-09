@@ -1,0 +1,35 @@
+{
+  "name": "byla-landingpage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Landing page premium do Byla",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/levi-tude/Byla-Landingpage.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/levi-tude/Byla-Landingpage/issues"
+  },
+  "homepage": "https://github.com/levi-tude/Byla-Landingpage#readme",
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@vitejs/plugin-react": "^5.1.3",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.1"
+  }
+}
