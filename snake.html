@@ -23,7 +23,7 @@
 
     .game-wrapper {
       width: 100%;
-      max-width: 600px;
+      max-width: 520px;
       background: #1f2937;
       border: 1px solid #374151;
       border-radius: 12px;
@@ -111,10 +111,10 @@
       <button id="restartBtn" class="btn" type="button">Reiniciar</button>
     </div>
 
-    <canvas id="gameCanvas" width="480" height="480" aria-label="Tabuleiro do jogo da cobrinha"></canvas>
+    <canvas id="gameCanvas" width="400" height="400" aria-label="Tabuleiro do jogo da cobrinha"></canvas>
 
     <div class="hint">
-      Use as setas ou WASD para mover. Coma os morangos e evite bater nas paredes e no próprio corpo.
+      Use as setas ou WASD para mover. Evite bater nas paredes e no próprio corpo.
     </div>
 
     <div class="controls">
@@ -134,7 +134,7 @@
     const restartBtn = document.getElementById("restartBtn");
     const controlButtons = document.querySelectorAll(".control[data-dir]");
 
-    const gridCount = 24;
+    const gridCount = 20;
     const tile = canvas.width / gridCount;
     const gameSpeedMs = 120;
 
@@ -159,12 +159,10 @@
     }
 
     function resetGame() {
-      const centerX = Math.floor(gridCount / 2);
-      const centerY = Math.floor(gridCount / 2);
       snake = [
-        { x: centerX, y: centerY },
-        { x: centerX - 1, y: centerY },
-        { x: centerX - 2, y: centerY }
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+        { x: 8, y: 10 }
       ];
       direction = { x: 1, y: 0 };
       nextDirection = { x: 1, y: 0 };
@@ -220,101 +218,22 @@
       draw();
     }
 
-    function drawCircle(x, y, radius, color) {
+    function drawSquare(x, y, color) {
       ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    function drawStrawberry(x, y) {
-      const cx = x * tile + tile / 2;
-      const cy = y * tile + tile / 2;
-
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.moveTo(cx, cy + tile * 0.34);
-      ctx.quadraticCurveTo(cx + tile * 0.38, cy + tile * 0.05, cx + tile * 0.2, cy - tile * 0.22);
-      ctx.quadraticCurveTo(cx, cy - tile * 0.38, cx - tile * 0.2, cy - tile * 0.22);
-      ctx.quadraticCurveTo(cx - tile * 0.38, cy + tile * 0.05, cx, cy + tile * 0.34);
-      ctx.fill();
-
-      ctx.fillStyle = "#22c55e";
-      ctx.beginPath();
-      ctx.moveTo(cx - tile * 0.14, cy - tile * 0.22);
-      ctx.lineTo(cx, cy - tile * 0.38);
-      ctx.lineTo(cx + tile * 0.14, cy - tile * 0.22);
-      ctx.fill();
-
-      const seedOffsets = [
-        { x: -0.12, y: -0.04 },
-        { x: 0.02, y: -0.1 },
-        { x: 0.12, y: -0.02 },
-        { x: -0.08, y: 0.12 },
-        { x: 0.08, y: 0.12 }
-      ];
-      seedOffsets.forEach((offset) => {
-        drawCircle(cx + tile * offset.x, cy + tile * offset.y, tile * 0.04, "#fde68a");
-      });
-    }
-
-    function drawSnake() {
-      snake.forEach((part, index) => {
-        const cx = part.x * tile + tile / 2;
-        const cy = part.y * tile + tile / 2;
-
-        if (index === 0) {
-          drawCircle(cx, cy, tile * 0.44, "#34d399");
-          drawCircle(cx, cy, tile * 0.3, "#6ee7b7");
-
-          const perp = { x: -direction.y, y: direction.x };
-          const frontOffset = tile * 0.17;
-          const eyeOffset = tile * 0.14;
-          const eyeRadius = tile * 0.09;
-
-          const eye1x = cx + direction.x * frontOffset + perp.x * eyeOffset;
-          const eye1y = cy + direction.y * frontOffset + perp.y * eyeOffset;
-          const eye2x = cx + direction.x * frontOffset - perp.x * eyeOffset;
-          const eye2y = cy + direction.y * frontOffset - perp.y * eyeOffset;
-
-          drawCircle(eye1x, eye1y, eyeRadius, "#f8fafc");
-          drawCircle(eye2x, eye2y, eyeRadius, "#f8fafc");
-          drawCircle(eye1x + direction.x * 2, eye1y + direction.y * 2, tile * 0.04, "#111827");
-          drawCircle(eye2x + direction.x * 2, eye2y + direction.y * 2, tile * 0.04, "#111827");
-
-          const tongueBaseX = cx + direction.x * tile * 0.35;
-          const tongueBaseY = cy + direction.y * tile * 0.35;
-          const tongueTipX = cx + direction.x * tile * 0.55;
-          const tongueTipY = cy + direction.y * tile * 0.55;
-
-          ctx.strokeStyle = "#fb7185";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(tongueBaseX, tongueBaseY);
-          ctx.lineTo(tongueTipX, tongueTipY);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(tongueTipX, tongueTipY);
-          ctx.lineTo(tongueTipX + perp.x * 4 - direction.x * 2, tongueTipY + perp.y * 4 - direction.y * 2);
-          ctx.moveTo(tongueTipX, tongueTipY);
-          ctx.lineTo(tongueTipX - perp.x * 4 - direction.x * 2, tongueTipY - perp.y * 4 - direction.y * 2);
-          ctx.stroke();
-        } else {
-          const sizeFactor = Math.max(0.28, 0.42 - index * 0.008);
-          drawCircle(cx, cy, tile * sizeFactor, index % 2 ? "#16a34a" : "#15803d");
-          if (index % 3 === 0) {
-            drawCircle(cx, cy, tile * (sizeFactor * 0.42), "#22c55e");
-          }
-        }
-      });
+      ctx.fillRect(x * tile, y * tile, tile, tile);
+      ctx.strokeStyle = "#111827";
+      ctx.strokeRect(x * tile, y * tile, tile, tile);
     }
 
     function draw() {
       ctx.fillStyle = "#0b1220";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      drawStrawberry(food.x, food.y);
-      drawSnake();
+      drawSquare(food.x, food.y, "#f43f5e");
+
+      snake.forEach((part, index) => {
+        drawSquare(part.x, part.y, index === 0 ? "#22c55e" : "#16a34a");
+      });
 
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
