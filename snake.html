@@ -139,12 +139,16 @@
     const gameSpeedMs = 120;
 
     let snake;
+    let prevSnake;
     let direction;
     let nextDirection;
     let food;
     let score;
     let gameOver;
     let loopId;
+    let lastMoveTime;
+    let animationFrameId;
+    let audioCtx;
 
     function randomGridPosition() {
       return Math.floor(Math.random() * gridCount);
@@ -158,6 +162,56 @@
       return newFood;
     }
 
+    function cloneSnake(parts) {
+      return parts.map((part) => ({ ...part }));
+    }
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      return audioCtx;
+    }
+
+    function unlockAudio() {
+      const context = ensureAudioContext();
+      if (context && context.state === "suspended") {
+        context.resume();
+      }
+    }
+
+    function playTone(startFreq, endFreq, duration, offset, volume) {
+      const context = ensureAudioContext();
+      if (!context) return;
+
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      const start = context.currentTime + offset;
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(startFreq, start);
+      osc.frequency.exponentialRampToValueAtTime(endFreq, start + duration);
+
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+      osc.connect(gain);
+      gain.connect(context.destination);
+
+      osc.start(start);
+      osc.stop(start + duration + 0.02);
+    }
+
+    function playEatSound() {
+      unlockAudio();
+      playTone(520, 760, 0.08, 0, 0.08);
+      playTone(760, 1080, 0.1, 0.07, 0.07);
+    }
+
     function resetGame() {
       const centerX = Math.floor(gridCount / 2);
       const centerY = Math.floor(gridCount / 2);
@@ -168,16 +222,21 @@
       ];
       direction = { x: 1, y: 0 };
       nextDirection = { x: 1, y: 0 };
+      prevSnake = cloneSnake(snake);
       food = spawnFood();
       score = 0;
       gameOver = false;
       scoreEl.textContent = score;
+      lastMoveTime = performance.now();
 
       if (loopId) {
         clearInterval(loopId);
       }
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
       loopId = setInterval(gameTick, gameSpeedMs);
-      draw();
+      animationFrameId = requestAnimationFrame(renderLoop);
     }
 
     function setDirection(newDir) {
@@ -192,6 +251,8 @@
       if (gameOver) return;
 
       direction = nextDirection;
+      prevSnake = cloneSnake(snake);
+
       const head = { ...snake[0] };
       head.x += direction.x;
       head.y += direction.y;
@@ -203,7 +264,7 @@
       if (hitWall || hitSelf) {
         gameOver = true;
         clearInterval(loopId);
-        draw();
+        draw(1);
         return;
       }
 
@@ -213,11 +274,12 @@
         score += 10;
         scoreEl.textContent = score;
         food = spawnFood();
+        playEatSound();
       } else {
         snake.pop();
       }
 
-      draw();
+      lastMoveTime = performance.now();
     }
 
     function drawCircle(x, y, radius, color) {
@@ -258,8 +320,31 @@
       });
     }
 
-    function drawSnake() {
-      snake.forEach((part, index) => {
+    function getFacingDirection(parts) {
+      if (!parts || parts.length < 2) return direction;
+
+      const dx = parts[0].x - parts[1].x;
+      const dy = parts[0].y - parts[1].y;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        return { x: dx >= 0 ? 1 : -1, y: 0 };
+      }
+      return { x: 0, y: dy >= 0 ? 1 : -1 };
+    }
+
+    function getInterpolatedSnake(progress) {
+      return snake.map((currentPart, index) => {
+        const previousPart = prevSnake[index] || prevSnake[prevSnake.length - 1] || currentPart;
+        return {
+          x: previousPart.x + (currentPart.x - previousPart.x) * progress,
+          y: previousPart.y + (currentPart.y - previousPart.y) * progress
+        };
+      });
+    }
+
+    function drawSnake(parts) {
+      const facingDirection = getFacingDirection(parts);
+
+      parts.forEach((part, index) => {
         const cx = part.x * tile + tile / 2;
         const cy = part.y * tile + tile / 2;
 
@@ -267,25 +352,25 @@
           drawCircle(cx, cy, tile * 0.44, "#34d399");
           drawCircle(cx, cy, tile * 0.3, "#6ee7b7");
 
-          const perp = { x: -direction.y, y: direction.x };
+          const perp = { x: -facingDirection.y, y: facingDirection.x };
           const frontOffset = tile * 0.17;
           const eyeOffset = tile * 0.14;
           const eyeRadius = tile * 0.09;
 
-          const eye1x = cx + direction.x * frontOffset + perp.x * eyeOffset;
-          const eye1y = cy + direction.y * frontOffset + perp.y * eyeOffset;
-          const eye2x = cx + direction.x * frontOffset - perp.x * eyeOffset;
-          const eye2y = cy + direction.y * frontOffset - perp.y * eyeOffset;
+          const eye1x = cx + facingDirection.x * frontOffset + perp.x * eyeOffset;
+          const eye1y = cy + facingDirection.y * frontOffset + perp.y * eyeOffset;
+          const eye2x = cx + facingDirection.x * frontOffset - perp.x * eyeOffset;
+          const eye2y = cy + facingDirection.y * frontOffset - perp.y * eyeOffset;
 
           drawCircle(eye1x, eye1y, eyeRadius, "#f8fafc");
           drawCircle(eye2x, eye2y, eyeRadius, "#f8fafc");
-          drawCircle(eye1x + direction.x * 2, eye1y + direction.y * 2, tile * 0.04, "#111827");
-          drawCircle(eye2x + direction.x * 2, eye2y + direction.y * 2, tile * 0.04, "#111827");
+          drawCircle(eye1x + facingDirection.x * 2, eye1y + facingDirection.y * 2, tile * 0.04, "#111827");
+          drawCircle(eye2x + facingDirection.x * 2, eye2y + facingDirection.y * 2, tile * 0.04, "#111827");
 
-          const tongueBaseX = cx + direction.x * tile * 0.35;
-          const tongueBaseY = cy + direction.y * tile * 0.35;
-          const tongueTipX = cx + direction.x * tile * 0.55;
-          const tongueTipY = cy + direction.y * tile * 0.55;
+          const tongueBaseX = cx + facingDirection.x * tile * 0.35;
+          const tongueBaseY = cy + facingDirection.y * tile * 0.35;
+          const tongueTipX = cx + facingDirection.x * tile * 0.55;
+          const tongueTipY = cy + facingDirection.y * tile * 0.55;
 
           ctx.strokeStyle = "#fb7185";
           ctx.lineWidth = 2;
@@ -295,9 +380,15 @@
           ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(tongueTipX, tongueTipY);
-          ctx.lineTo(tongueTipX + perp.x * 4 - direction.x * 2, tongueTipY + perp.y * 4 - direction.y * 2);
+          ctx.lineTo(
+            tongueTipX + perp.x * 4 - facingDirection.x * 2,
+            tongueTipY + perp.y * 4 - facingDirection.y * 2
+          );
           ctx.moveTo(tongueTipX, tongueTipY);
-          ctx.lineTo(tongueTipX - perp.x * 4 - direction.x * 2, tongueTipY - perp.y * 4 - direction.y * 2);
+          ctx.lineTo(
+            tongueTipX - perp.x * 4 - facingDirection.x * 2,
+            tongueTipY - perp.y * 4 - facingDirection.y * 2
+          );
           ctx.stroke();
         } else {
           const sizeFactor = Math.max(0.28, 0.42 - index * 0.008);
@@ -309,12 +400,12 @@
       });
     }
 
-    function draw() {
+    function draw(progress = 1) {
       ctx.fillStyle = "#0b1220";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       drawStrawberry(food.x, food.y);
-      drawSnake();
+      drawSnake(getInterpolatedSnake(progress));
 
       if (gameOver) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
@@ -328,7 +419,14 @@
       }
     }
 
+    function renderLoop(now) {
+      const progress = gameOver ? 1 : Math.min(1, (now - lastMoveTime) / gameSpeedMs);
+      draw(progress);
+      animationFrameId = requestAnimationFrame(renderLoop);
+    }
+
     document.addEventListener("keydown", (event) => {
+      unlockAudio();
       const key = event.key.toLowerCase();
       if (key === "arrowup" || key === "w") setDirection({ x: 0, y: -1 });
       else if (key === "arrowdown" || key === "s") setDirection({ x: 0, y: 1 });
@@ -338,6 +436,7 @@
 
     controlButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
+        unlockAudio();
         const dir = btn.dataset.dir;
         if (dir === "up") setDirection({ x: 0, y: -1 });
         if (dir === "down") setDirection({ x: 0, y: 1 });
@@ -347,6 +446,7 @@
     });
 
     restartBtn.addEventListener("click", resetGame);
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
 
     resetGame();
   </script>
