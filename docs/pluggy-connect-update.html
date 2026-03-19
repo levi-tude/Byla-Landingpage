@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pluggy Connect – Atualizar item (update)</title>
+  <script src="https://cdn.pluggy.ai/pluggy-connect/latest/pluggy-connect.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 560px; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input, textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; box-sizing: border-box; }
+    button { margin-top: 1rem; padding: 0.75rem 1.5rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+    button:hover { background: #1d4ed8; }
+    .aviso { background: #fef3c7; padding: 0.75rem; border-radius: 6px; margin-top: 1rem; font-size: 0.9rem; }
+    #msg { margin-top: 1rem; color: #059669; }
+    #err { margin-top: 1rem; color: #dc2626; }
+  </style>
+</head>
+<body>
+  <h1>Atualizar item Pluggy (Connect)</h1>
+  <p>Cole o <strong>accessToken</strong> e o <strong>itemId</strong> que você obteve ao rodar o workflow “Gerar token update Pluggy” no n8n. Depois clique em “Abrir Pluggy Connect”.</p>
+
+  <label for="token">Access Token</label>
+  <textarea id="token" rows="3" placeholder="Cole o accessToken aqui"></textarea>
+
+  <label for="itemId">Item ID</label>
+  <input type="text" id="itemId" placeholder="Ex.: 35967bf3-89d9-4f26-ad2c-5009e86c533f" />
+
+  <button type="button" id="abrir">Abrir Pluggy Connect</button>
+
+  <div class="aviso">O token vale por cerca de 30 minutos. Se der erro, gere um novo token no n8n e tente de novo.</div>
+  <div id="msg"></div>
+  <div id="err"></div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('token')) document.getElementById('token').value = params.get('token');
+      if (params.get('itemId')) document.getElementById('itemId').value = params.get('itemId');
+
+      document.getElementById('abrir').addEventListener('click', function () {
+        var token = document.getElementById('token').value.trim();
+        var itemId = document.getElementById('itemId').value.trim();
+        document.getElementById('msg').textContent = '';
+        document.getElementById('err').textContent = '';
+
+        if (!token) {
+          document.getElementById('err').textContent = 'Cole o accessToken.';
+          return;
+        }
+        if (!itemId) {
+          document.getElementById('err').textContent = 'Preencha o Item ID.';
+          return;
+        }
+
+        try {
+          var pluggyConnect = new PluggyConnect({
+            connectToken: token,
+            updateItem: itemId,
+            includeSandbox: false,
+            onSuccess: function (data) {
+              document.getElementById('msg').textContent = 'Update concluído. Agora rode o workflow BYLA - Pluggy para Supabase no n8n para buscar as transações novas.';
+            },
+            onError: function (err) {
+              document.getElementById('err').textContent = 'Erro: ' + (err && (err.message || err.errorMessage || JSON.stringify(err))) || 'Erro no Connect';
+            },
+            onClose: function () {
+              console.log('Pluggy Connect fechado');
+            }
+          });
+          pluggyConnect.init();
+        } catch (e) {
+          document.getElementById('err').textContent = 'Erro ao abrir o Connect: ' + e.message;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

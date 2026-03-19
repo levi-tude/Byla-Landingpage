@@ -1,0 +1,52 @@
+{
+  "name": "Teste - Google Sheets",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "manual-trigger-test",
+      "name": "Executar teste"
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "create",
+        "title": "Teste conexão n8n - Byla",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [460, 300],
+      "id": "14c30136-1f5f-47ef-92ed-0ac3a23f2b53",
+      "name": "Criar planilha de teste",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QyFb66Od1mgc0ins",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Executar teste": {
+      "main": [
+        [
+          {
+            "node": "Criar planilha de teste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {},
+  "tags": []
+}

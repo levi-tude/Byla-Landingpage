@@ -1,0 +1,166 @@
+{
+  "name": "BYLA - PagBank EDI para Supabase",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{}] } },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "id": "schedule-pagbank",
+      "name": "Agendar (ex.: 1x/dia)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const hoje = new Date();\nconst datas = [];\nfor (let i = 1; i <= 15; i++) {\n  const d = new Date(hoje);\n  d.setDate(d.getDate() - i);\n  datas.push(d.toISOString().split('T')[0]);\n}\nreturn datas.map(data => ({ json: { data } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "id": "code-datas",
+      "name": "Últimos 15 dias"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://edi.api.pagbank.com.br/movement/v3.00/transactional/{{ $json.data }}?pageNumber=1&pageSize=1000",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "id": "http-edi",
+      "name": "PagBank EDI (transactional)",
+      "credentials": { "httpBasicAuth": { "id": "PAGBANK_EDI", "name": "PagBank EDI USER:TOKEN" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://edi.api.pagbank.com.br/movement/v3.00/financial/{{ $json.data }}?pageNumber=1&pageSize=1000",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 460],
+      "id": "http-edi-fin",
+      "name": "PagBank EDI (financial)",
+      "credentials": { "httpBasicAuth": { "id": "PAGBANK_EDI", "name": "PagBank EDI USER:TOKEN" } }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://edi.api.pagbank.com.br/movement/v3.00/cashouts/{{ $json.data }}?pageNumber=1&pageSize=1000",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 620],
+      "id": "http-edi-cash",
+      "name": "PagBank EDI (cashouts)",
+      "credentials": { "httpBasicAuth": { "id": "PAGBANK_EDI", "name": "PagBank EDI USER:TOKEN" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst dataConsulta = ($('Últimos 15 dias').item && $('Últimos 15 dias').item.json && $('Últimos 15 dias').item.json.data) ? $('Últimos 15 dias').item.json.data : '';\nconst detalhes = item.detalhes || item.movimentos || item.data || [];\nif (!Array.isArray(detalhes)) return [];\nconst out = [];\nfor (const d of detalhes) {\n  const dataRaw = d.data_cashout || d.data || dataConsulta || '';\n  const data = String(dataRaw).split('T')[0].trim();\n  const valor = Math.abs(parseFloat(d.valor_cashout ?? d.valor ?? 0) || 0);\n  if (!data || valor === 0) continue;\n  const isPixCash = String(d.arranjo_pagamento || '').trim().toUpperCase() === 'PIX';\n  const descricao = isPixCash ? 'PIX' : String(d.tipo_cashout || d.arranjo_pagamento || 'Cashout').trim();\n  const pessoa = String(d.tipo_cashout || ('Cashout ' + (d.codigo_cashout || d.codigo_ur || ''))).trim() || 'Cashout';\n  const id_unico = 'c-' + data + '-' + (d.codigo_cashout || d.codigo_ur || '') + '-' + valor;\n  out.push({ json: { data, pessoa, valor, descricao, tipo: 'entrada', id_unico } });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 620],
+      "id": "code-parse-cash",
+      "name": "Mapear cashouts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst dataConsulta = ($('Últimos 15 dias').item && $('Últimos 15 dias').item.json && $('Últimos 15 dias').item.json.data) ? $('Últimos 15 dias').item.json.data : '';\nconst detalhes = item.detalhes || item.movimentos || item.data || [];\nif (!Array.isArray(detalhes)) return [];\nconst out = [];\nfor (const d of detalhes) {\n  const dataRaw = d.data_inicial_transacao || d.data_venda_ajuste || d.data_movimentacao || d.data || d.dataLancamento || d.date || dataConsulta || '';\n  const data = String(dataRaw).split('T')[0].trim();\n  const pessoa = String(d.descricao || d.nome_comprador || d.nome || d.payerName || d.pessoa || ('Transação ' + (d.codigo_venda || d.codigo_transacao || ''))).trim() || 'Sem descrição';\n  const valor = Math.abs(parseFloat(d.valor_total_transacao ?? d.valor_parcela ?? d.valor ?? d.amount ?? d.value ?? 0) || 0);\n  const isPix = (d.meio_pagamento == 11 || String(d.meio_pagamento) === '11') || String(d.arranjo_ur || '').trim().toUpperCase() === 'PIX' || String(d.arranjo_pagamento || '').trim().toUpperCase() === 'PIX';\n  const descricao = isPix ? 'PIX' : String(d.arranjo_ur || d.tipoMovimento || d.metodo || d.paymentMethod || d.tipo_transacao || 'Transação').trim();\n  const tipo = (d.tipo || (parseFloat(d.valor_total_transacao ?? d.valor_parcela ?? d.valor ?? d.amount ?? d.value ?? 0) >= 0 ? 'entrada' : 'saida')).toString().toLowerCase();\n  const tipoFinal = tipo === 'entrada' ? 'entrada' : 'saida';\n  if (!data || valor === 0) continue;\n  const id_unico = data + '-' + (d.codigo_transacao || d.codigo_venda || pessoa) + '-' + valor;\n  out.push({ json: { data, pessoa, valor, descricao, tipo: tipoFinal, id_unico } });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "id": "code-parse",
+      "name": "Mapear para transacoes"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst dataConsulta = ($('Últimos 15 dias').item && $('Últimos 15 dias').item.json && $('Últimos 15 dias').item.json.data) ? $('Últimos 15 dias').item.json.data : '';\nconst detalhes = item.detalhes || item.movimentos || item.data || [];\nif (!Array.isArray(detalhes)) return [];\nconst out = [];\nfor (const d of detalhes) {\n  const dataRaw = d.data_liquidacao || d.data_pagamento || d.data_movimentacao || d.data_inicial_transacao || d.data_venda_ajuste || d.data || d.dataLancamento || d.date || dataConsulta || '';\n  const data = String(dataRaw).split('T')[0].trim();\n  const pessoa = String(d.descricao || d.nome_comprador || d.nome || d.payerName || d.pessoa || ('Liquidação ' + (d.codigo_venda || d.codigo_transacao || d.id || ''))).trim() || 'Liquidação';\n  const valor = Math.abs(parseFloat(d.valor_liquido_transacao ?? d.valor_total_transacao ?? d.valor_parcela ?? d.valor ?? d.amount ?? d.value ?? 0) || 0);\n  const isPix = (d.meio_pagamento == 11 || String(d.meio_pagamento) === '11') || String(d.arranjo_ur || '').trim().toUpperCase() === 'PIX' || String(d.arranjo_pagamento || '').trim().toUpperCase() === 'PIX';\n  const descricao = isPix ? 'PIX' : String(d.arranjo_ur || d.tipo_evento || d.tipoMovimento || d.metodo || 'Liquidação').trim();\n  const tipoFinal = (d.tipo || 'entrada').toString().toLowerCase() === 'entrada' ? 'entrada' : 'saida';\n  if (!data || valor === 0) continue;\n  const id_unico = 'f-' + data + '-' + (d.codigo_transacao || d.codigo_venda || d.id || pessoa) + '-' + valor;\n  out.push({ json: { data, pessoa, valor, descricao, tipo: tipoFinal, id_unico } });\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 460],
+      "id": "code-parse-fin",
+      "name": "Mapear financial"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "transacoes",
+        "limit": 10000
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [900, 120],
+      "id": "get-supabase",
+      "name": "Id_unicos no Supabase",
+      "credentials": { "supabaseApi": { "id": "kFm03myUmZbWVipn", "name": "Supabase account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const itens = $input.all().map(i => i.json);\nconst existentes = new Set(($('Id_unicos no Supabase').all() || []).map(i => i.json.id_unico).filter(Boolean));\nconst novos = itens.filter(o => o.id_unico && !existentes.has(o.id_unico));\nreturn novos.map(o => ({ json: o }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "id": "code-dedup",
+      "name": "Só novos"
+    },
+    {
+      "parameters": {
+        "tableId": "transacoes",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "data", "fieldValue": "={{ $json.data }}" },
+            { "fieldId": "pessoa", "fieldValue": "={{ $json.pessoa ?? '' }}" },
+            { "fieldId": "valor", "fieldValue": "={{ $json.valor }}" },
+            { "fieldId": "descricao", "fieldValue": "={{ $json.descricao ?? '' }}" },
+            { "fieldId": "tipo", "fieldValue": "={{ $json.tipo ?? 'saida' }}" },
+            { "fieldId": "id_unico", "fieldValue": "={{ $json.id_unico }}" }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "id": "insert-supabase",
+      "name": "Inserir Supabase",
+      "credentials": { "supabaseApi": { "id": "kFm03myUmZbWVipn", "name": "Supabase account" } },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Agendar (ex.: 1x/dia)": {
+      "main": [
+        [
+          { "node": "Últimos 15 dias", "type": "main", "index": 0 },
+          { "node": "Id_unicos no Supabase", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Últimos 15 dias": { "main": [[{ "node": "PagBank EDI (transactional)", "type": "main", "index": 0 }, { "node": "PagBank EDI (financial)", "type": "main", "index": 0 }, { "node": "PagBank EDI (cashouts)", "type": "main", "index": 0 }]] },
+    "PagBank EDI (transactional)": { "main": [[{ "node": "Mapear para transacoes", "type": "main", "index": 0 }]] },
+    "PagBank EDI (financial)": { "main": [[{ "node": "Mapear financial", "type": "main", "index": 0 }]] },
+    "PagBank EDI (cashouts)": { "main": [[{ "node": "Mapear cashouts", "type": "main", "index": 0 }]] },
+    "Mapear para transacoes": { "main": [[{ "node": "Só novos", "type": "main", "index": 0 }]] },
+    "Mapear financial": { "main": [[{ "node": "Só novos", "type": "main", "index": 0 }]] },
+    "Mapear cashouts": { "main": [[{ "node": "Só novos", "type": "main", "index": 0 }]] },
+    "Só novos": { "main": [[{ "node": "Inserir Supabase", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {},
+  "meta": {},
+  "tags": []
+}

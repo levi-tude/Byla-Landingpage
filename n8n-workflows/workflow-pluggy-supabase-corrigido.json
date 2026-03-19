@@ -1,0 +1,621 @@
+{
+  "name": "BYLA - Pluggy para Supabase (CORRIGIDO)",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://api.pluggy.ai/transactions?accountId=2ad07dd9-71a6-433e-a257-3d1410106e47&from={{ $json.fromDate }}T00:00:00.000Z&to={{ $json.toDate }}T23:59:59.999Z&pageSize=200",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $json.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "name": "Buscar Extrato",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1376,
+        128
+      ],
+      "id": "ada1bf93-0e0c-46ca-8571-8b86b46fd38c"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbzXvQE6v1WMbtPPzd85WDk1o7iPFAMVNS6pSk1LIaEiFo5zvCWFvVGb5Kbuv2kTWlHhUg/exec",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"transactions\": {{ $json.results }}\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1584,
+        496
+      ],
+      "id": "37500312-ac29-4db7-a7fd-6a5669f955d0",
+      "name": "HTTP Request",
+      "alwaysOutputData": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = items[0].json.results || [];\n\n// Pegar último id_unico, data e lista de id_unicos existentes (vêm do fluxo via Code in JavaScript1)\nlet ultimoIdUnico = null;\nlet ultimaData = null;\nlet idUnicosExistentesArray = [];\ntry {\n  const prev = $('Code in JavaScript1').first().json;\n  ultimoIdUnico = prev.ultimoIdUnico || null;\n  ultimaData = prev.ultimaData || null;\n  idUnicosExistentesArray = Array.isArray(prev.idUnicosExistentes) ? prev.idUnicosExistentes : [];\n} catch (e) {\n  // Se não conseguir pegar, tenta buscar diretamente do Get many rows\n  try {\n    const todasTransacoes = $('Get many rows').all();\n    todasTransacoes.forEach(item => {\n      if (item.json && item.json.id_unico) {\n        idUnicosExistentesArray.push(String(item.json.id_unico));\n      }\n    });\n  } catch (e2) {}\n}\n\n// Se ainda não tem nada e tem ultimoIdUnico, adiciona ele\nif (idUnicosExistentesArray.length === 0 && ultimoIdUnico) {\n  idUnicosExistentesArray.push(String(ultimoIdUnico));\n}\n\n// Converter array para Set para busca rápida\nconst idUnicosExistentes = new Set(idUnicosExistentesArray.map(id => String(id).trim()));\n\n// Função auxiliar para gerar id_unico no mesmo formato da tabela\n// Formato na tabela: \"2026-02-12T02:55:28.000Z-PESSOA-VALOR\"\nfunction gerarIdUnico(rawDate, pessoa, amount) {\n  // Se rawDate já tem timestamp completo, usa ele; senão, usa só a data\n  if (rawDate && typeof rawDate === 'string' && rawDate.includes('T')) {\n    // Já tem timestamp completo (ex: \"2026-02-12T02:55:28.000Z\")\n    return `${rawDate}-${pessoa}-${amount}`;\n  } else {\n    // Só tem data (ex: \"2026-02-12\"), usa como está\n    return `${rawDate || ''}-${pessoa}-${amount}`;\n  }\n}\n\n// Filtrar: não incluir transações que já estão na tabela\nconst resultsFiltrados = results.filter(r => {\n  const rawDate = r.date || r.dateCreated;\n  const date = rawDate && typeof rawDate === 'string' && rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;\n  const pessoa = (r.description || r.merchantName || r.paymentData?.payer?.name || 'Transação sem descrição').trim();\n  const amount = Math.abs(parseFloat(r.amount) || 0);\n  \n  // Gerar id_unico no mesmo formato da tabela (com timestamp completo se disponível)\n  const id_unico = gerarIdUnico(rawDate, pessoa, amount);\n  const id_unicoNormalizado = String(id_unico).trim();\n  \n  // Excluir se já existe na tabela (por id_unico) - verificação principal\n  if (idUnicosExistentes.has(id_unicoNormalizado)) {\n    return false;\n  }\n  \n  // Verificar também sem normalização (caso o Set tenha valores diferentes)\n  for (const existente of idUnicosExistentes) {\n    if (String(existente).trim() === id_unicoNormalizado) {\n      return false;\n    }\n  }\n  \n  // Excluir se for exatamente a última transação (backup check)\n  if (ultimoIdUnico && id_unicoNormalizado === String(ultimoIdUnico).trim()) {\n    return false;\n  }\n  \n  // Excluir apenas se a data for ANTERIOR à última (não igual, para pegar transações do mesmo dia)\n  if (ultimaData && date < ultimaData) {\n    return false;\n  }\n  \n  return true;\n});\n\nreturn resultsFiltrados.map(r => {\n  const rawDate = r.date || r.dateCreated;\n  const date = rawDate && typeof rawDate === 'string' && rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;\n  const pessoa = (r.description || r.merchantName || r.paymentData?.payer?.name || 'Transação sem descrição').trim();\n  const paymentMethod = r.paymentData?.paymentMethod ?? '';\n  const descricao = paymentMethod;\n  const amount = Math.abs(parseFloat(r.amount) || 0);\n  const originalAmount = parseFloat(r.amount) || 0;\n  const tipo = originalAmount >= 0 ? 'entrada' : 'saida';\n  \n  // Gerar id_unico no mesmo formato da tabela (com timestamp completo se disponível)\n  const id_unico = gerarIdUnico(rawDate, pessoa, amount);\n\n  return {\n    json: {\n      data: date,\n      descricao: descricao || '',\n      valor: amount,\n      tipo: tipo || 'saida',\n      pessoa: pessoa || '',\n      id_unico: id_unico,\n      categoria: paymentMethod || ''\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        128
+      ],
+      "id": "a313f002-5a71-4f50-aad5-31cbe511338f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        128
+      ],
+      "id": "2435f376-50e0-4348-a60b-3c3b3c458bb3",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        128
+      ],
+      "id": "a80b2523-c44c-418d-9418-265ef66564a2",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6064def9-544e-4e6a-934d-3fee5a5d64ac",
+              "name": "id_unico",
+              "value": "={{ $json.id_unico }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2208,
+        128
+      ],
+      "id": "92a66fd3-f3e2-438f-875b-ee413889b702",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -528,
+        128
+      ],
+      "id": "e3d9ac02-0948-49ca-90a6-07e9244c35cf",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aeb4e7ca-47fb-40ff-9f1c-1f83365a4555",
+              "name": "itemId",
+              "value": "35967bf3-89d9-4f26-ad2c-5009e86c533f",
+              "type": "string"
+            },
+            {
+              "id": "51332f70-e8ed-40f7-b953-95ea2fbc5c26",
+              "name": "apiKey",
+              "value": "={{ $json.apiKey }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        112
+      ],
+      "id": "642e8a8b-ead6-4cb2-96d4-9d6dd224be02",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        352
+      ],
+      "id": "43584425-8892-435d-8db8-84ca71494f4a",
+      "name": "Wait",
+      "webhookId": "523eeb41-ad82-479e-be44-59ba8ccfd231"
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        336,
+        432
+      ],
+      "id": "6ec469db-b266-4b69-a294-ff1a228980bc",
+      "name": "Wait1",
+      "webhookId": "3e2492f5-74ff-4640-93c6-a799883517bf"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cbb55324-48fb-47ef-8a59-9b257cb8f857",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -176,
+        256
+      ],
+      "id": "e60a2ed9-7141-42f4-b9e2-ac41e925b176",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pluggy.ai/auth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"clientId\": \"a331a598-b662-4ea5-bb44-c2dc384971c2\",\n  \"clientSecret\": \"6f64c3b5-6fb8-489f-b1fb-43432a336772\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        160,
+        176
+      ],
+      "id": "c5e0c55d-1f6d-4331-9be8-93bc8eed8423",
+      "name": "Preparar Variáveis"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.pluggy.ai/items/{{ $json.itemId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $json.apiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        208
+      ],
+      "id": "75374e5e-b937-4ac7-9d95-05885a22c2ca",
+      "name": "Receber Variáveis",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 2,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        752,
+        48
+      ],
+      "id": "50963ff9-b16d-48e1-984e-47ac610ee0d5",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json;\n\n// Pegar apiKey - pode vir como string ou objeto\nlet apiKey = input.apiKey;\nif (typeof apiKey === 'object' && apiKey !== null) {\n  apiKey = apiKey.token || apiKey.apiKey || JSON.stringify(apiKey);\n}\napiKey = String(apiKey || '');\n\n// Remover caracteres inválidos para headers (newline, tab, aspas, etc)\nconst cleanApiKey = String(apiKey || '').replace(/[\\r\\n\\t\"'\\x00]/g, '').trim();\n// Pegar itemId\nconst itemId = input.itemId || input.id || '';\n\n// Pegar accountId\nconst accountId = input.accountId || input.id || '';\n\n// Pegar datas e informações da última transação do node \"Pegar última data\"\nlet fromDate = input.fromDate;\nlet toDate = input.toDate;\nlet ultimoIdUnico = input.ultimoIdUnico || null;\nlet ultimaData = input.ultimaData || null;\nlet idUnicosExistentes = input.idUnicosExistentes || [];\n\nif (!fromDate || !toDate) {\n  try {\n    const datasNode = $('Pegar última data').item.json;\n    fromDate = datasNode.fromDate || fromDate;\n    toDate = datasNode.toDate || toDate;\n    ultimoIdUnico = datasNode.ultimoIdUnico || ultimoIdUnico;\n    ultimaData = datasNode.ultimaData || ultimaData;\n    idUnicosExistentes = datasNode.idUnicosExistentes || idUnicosExistentes;\n  } catch (e) {\n    const hoje = new Date();\n    const trintaDiasAtras = new Date();\n    trintaDiasAtras.setDate(hoje.getDate() - 30);\n    fromDate = fromDate || trintaDiasAtras.toISOString().split('T')[0];\n    toDate = toDate || hoje.toISOString().split('T')[0];\n  }\n}\n\n  if (!fromDate || !toDate) {\n    const hoje = new Date();\n    const trintaDiasAtras = new Date();\n    trintaDiasAtras.setDate(hoje.getDate() - 30);\n    fromDate = fromDate || trintaDiasAtras.toISOString().split('T')[0];\n    toDate = toDate || hoje.toISOString().split('T')[0];\n  }\n\nreturn {\n  json: {\n    apiKey: cleanApiKey,\n    itemId: itemId,\n    accountId: accountId,\n    fromDate: fromDate,\n    toDate: toDate,\n    ultimoIdUnico: ultimoIdUnico,\n    ultimaData: ultimaData,\n    idUnicosExistentes: idUnicosExistentes\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        48
+      ],
+      "id": "bc229b86-8929-4665-a1a9-218d58028c62",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2448,
+        176
+      ],
+      "id": "8cdba9c2-93f2-4415-bf25-2d5de84d31fc",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Se não tem transações (tabela vazia), usa últimos 30 dias\nif (items.length === 0) {\n  const hoje = new Date();\n  const trintaDiasAtras = new Date();\n  trintaDiasAtras.setDate(hoje.getDate() - 30);\n  \n  return {\n    json: {\n      fromDate: trintaDiasAtras.toISOString().split('T')[0],\n      toDate: hoje.toISOString().split('T')[0],\n      ultimaData: null,\n      ultimoIdUnico: null,\n      idUnicosExistentes: []\n    }\n  };\n}\n\n// Coletar TODOS os id_unicos existentes na tabela\nconst idUnicosExistentes = [];\nitems.forEach(item => {\n  if (item.json && item.json.id_unico) {\n    idUnicosExistentes.push(String(item.json.id_unico));\n  }\n});\n\n// Ordena por data (mais recente primeiro), depois por id_unico para garantir ordem\nconst sorted = items.sort((a, b) => {\n  const dateA = new Date(a.json.data || 0);\n  const dateB = new Date(b.json.data || 0);\n  if (dateB.getTime() !== dateA.getTime()) {\n    return dateB - dateA;\n  }\n  // Se mesma data, ordena por id_unico (mais recente primeiro)\n  return (b.json.id_unico || '').localeCompare(a.json.id_unico || '');\n});\n\n// Pega a data da mais recente\nconst ultimaDataStr = sorted[0].json.data;\nconst ultimoIdUnico = sorted[0].json.id_unico || null;\nconst ultimaData = ultimaDataStr;\n\nconst hoje = new Date();\nconst hojeStr = hoje.toISOString().split('T')[0];\n\n// fromDate = dia seguinte à última transação (para não repetir)\n// Mas se a última transação é de hoje, usa hoje mesmo (para pegar todas de hoje)\nconst lastDate = new Date(ultimaDataStr);\nlet fromDate;\nif (ultimaDataStr === hojeStr) {\n  // Se a última transação é de hoje, busca desde hoje (para pegar todas de hoje)\n  fromDate = hojeStr;\n} else {\n  // Se a última transação é de outro dia, busca do dia seguinte\n  lastDate.setDate(lastDate.getDate() + 1);\n  fromDate = lastDate.toISOString().split('T')[0];\n}\n\nconst toDate = hojeStr;\n\nreturn {\n  json: {\n    fromDate: fromDate,\n    toDate: toDate,\n    ultimaData: ultimaData,\n    ultimoIdUnico: ultimoIdUnico,\n    idUnicosExistentes: idUnicosExistentes\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fb977834-aca6-4802-a0df-b43755677524",
+      "name": "Pegar última data"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "transacoes"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        128
+      ],
+      "id": "5978c469-8fa6-4564-bf8c-2dd0bda1c0f8",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "kFm03myUmZbWVipn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const hoje = new Date();\nconst trintaDiasAtras = new Date();\ntrintaDiasAtras.setDate(hoje.getDate() - 30);\n\nreturn {\n  json: {\n    fromDate: trintaDiasAtras.toISOString().split('T')[0] + 'T00:00:00.000Z',\n    toDate: hoje.toISOString().split('T')[0] + 'T23:59:59.999Z'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        208
+      ],
+      "id": "a755cb82-3d6c-40a2-8161-e5a7c3bb7ebd",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "tableId": "transacoes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "data",
+              "fieldValue": "={{ $json.data }}"
+            },
+            {
+              "fieldId": "pessoa",
+              "fieldValue": "={{ $json.pessoa ?? '' }}"
+            },
+            {
+              "fieldId": "valor",
+              "fieldValue": "={{ $json.valor }}"
+            },
+            {
+              "fieldId": "descricao",
+              "fieldValue": "={{ $json.descricao }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "={{ $json.tipo ?? 'saida' }}"
+            },
+            {
+              "fieldId": "id_unico",
+              "fieldValue": "={{ $json.id_unico }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2656,
+        80
+      ],
+      "id": "aaad0362-2ed5-49c1-a117-5dfa8b293d3a",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "kFm03myUmZbWVipn",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Buscar Extrato": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Receber Variáveis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Pegar última data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Variáveis": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receber Variáveis": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Buscar Extrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pegar última data": {
+      "main": [
+        [
+          {
+            "node": "Preparar Variáveis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Preparar Variáveis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "availableInMCP": false
+  },
+  "versionId": "7d3adff3-e03b-47d3-aea6-f2661bc4e09a",
+  "meta": {
+    "instanceId": "6bb28ee64778f6db8971899e3a2519b0fa37b599b83cc4903dd9936a3efe6c7b"
+  },
+  "id": "DiMzcvKWnvwIKWsg",
+  "tags": []
+}

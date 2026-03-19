@@ -1,0 +1,134 @@
+{
+  "name": "BYLA - Relatório mensal com IA",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 280],
+      "id": "trigger-manual",
+      "name": "Manual (testar agora)"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 1 * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 420],
+      "id": "trigger-schedule",
+      "name": "Agendado (1º do mês 8h)"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "v_resumo_mensal_oficial",
+        "limit": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [440, 240],
+      "id": "supabase-resumo",
+      "name": "Resumo mensal",
+      "credentials": { "supabaseApi": { "id": "kFm03myUmZbWVipn", "name": "Supabase account" } }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "v_reconciliacao_mensalidades",
+        "limit": 500,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [440, 400],
+      "id": "supabase-recon",
+      "name": "Reconciliacao",
+      "credentials": { "supabaseApi": { "id": "kFm03myUmZbWVipn", "name": "Supabase account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Entradas: Resumo mensal (v_resumo_mensal_oficial) e Reconciliacao (v_reconciliacao_mensalidades)\nconst resumos = ($('Resumo mensal').all() || []).map(i => i.json);\nconst recons = ($('Reconciliacao').all() || []).map(i => i.json);\n\nconst now = new Date();\nconst lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst prevMonth = new Date(now.getFullYear(), now.getMonth() - 2, 1);\nconst anoAtual = lastMonth.getFullYear();\nconst mesAtual = lastMonth.getMonth() + 1;\nconst anoAnt = prevMonth.getFullYear();\nconst mesAnt = prevMonth.getMonth() + 1;\n\nconst resumoMes = resumos.find(r => r.ano === anoAtual && r.mes === mesAtual);\nconst resumoAnt = resumos.find(r => r.ano === anoAnt && r.mes === mesAnt);\n\nconst pendentes = recons.filter(r => r.confirmado_banco === false && r.data_pagamento)\n  .filter(r => {\n    const d = new Date(r.data_pagamento);\n    return d.getFullYear() === anoAtual && (d.getMonth() + 1) === mesAtual;\n  });\n\nconst mesNome = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesAtual];\n\nlet context = `Mês de referência: ${mesNome}/${anoAtual}\\n\\n`;\nif (resumoMes) {\n  context += `Resumo do mês (oficial):\\n- Total entradas: R$ ${Number(resumoMes.total_entradas || 0).toFixed(2)}\\n- Total saídas: R$ ${Number(resumoMes.total_saidas || 0).toFixed(2)}\\n- Saldo do mês: R$ ${Number(resumoMes.saldo_mes || 0).toFixed(2)}\\n- Quantidade de entradas: ${resumoMes.qtd_entradas || 0}\\n- Quantidade de saídas: ${resumoMes.qtd_saidas || 0}\\n\\n`;\n}\nif (resumoAnt) {\n  context += `Mês anterior (${['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesAnt]}/${anoAnt}):\\n- Total entradas: R$ ${Number(resumoAnt.total_entradas || 0).toFixed(2)}\\n- Saldo: R$ ${Number(resumoAnt.saldo_mes || 0).toFixed(2)}\\n\\n`;\n}\nif (pendentes.length > 0) {\n  context += `Mensalidades ainda NÃO confirmadas no banco (${pendentes.length}):\\n`;\n  pendentes.slice(0, 30).forEach(p => {\n    context += `- ${p.aluno_nome || 'N/A'} (${p.atividade_nome || 'N/A'}): R$ ${Number(p.valor || 0).toFixed(2)}, data ref. ${p.data_pagamento || 'N/A'}\\n`;\n  });\n  if (pendentes.length > 30) context += `... e mais ${pendentes.length - 30} itens.\\n`;\n} else {\n  context += 'Mensalidades não confirmadas no banco: nenhuma pendência listada para o mês.\\n';\n}\n\n// Role + Output constraint (system)\nconst systemPrompt = `Você é um analista financeiro do Espaço Byla, um espaço cultural. Sua tarefa é gerar resumos executivos objetivos a partir dos dados fornecidos. Responda sempre em português brasileiro. Formato de saída obrigatório: use exatamente as seções ## Resumo, ## Números do mês, ## Inadimplência, ## Recomendações. Seja conciso. Máximo 500 palavras.`;\n\n// Instruction + Context + CoT (user)\nconst userPrompt = `Analise passo a passo os dados abaixo e produza o resumo executivo do mês.\\n\\n[DADOS]\\n${context}\\n[FIM DADOS]\\n\\nPassos: 1) Resuma os totais e a tendência vs mês anterior; 2) Comente a situação de inadimplência se houver; 3) Dê 1 a 3 recomendações práticas. Gere o texto nas seções solicitadas.`;\n\nreturn [{ json: { systemPrompt, userPrompt, reportContext: context } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 320],
+      "id": "code-prompt",
+      "name": "Montar prompt e contexto"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [ { role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt } ], temperature: 0.3, max_tokens: 800 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 320],
+      "id": "http-openai",
+      "name": "OpenAI Chat",
+      "credentials": { "httpHeaderAuth": { "id": "OPENAI_PLACEHOLDER", "name": "OpenAI API Key" } },
+      "notesInFlow": true,
+      "notes": "Credencial: Header Name = Authorization, Value = Bearer <sua-api-key>"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst body = item.json;\nconst content = body.choices && body.choices[0] && body.choices[0].message ? body.choices[0].message.content : (body.content || JSON.stringify(body));\nreturn [{ json: { report: content, raw: body } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 320],
+      "id": "code-format",
+      "name": "Extrair relatório"
+    }
+  ],
+  "connections": {
+    "Manual (testar agora)": {
+      "main": [
+        [
+          { "node": "Resumo mensal", "type": "main", "index": 0 },
+          { "node": "Reconciliacao", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Agendado (1º do mês 8h)": {
+      "main": [
+        [
+          { "node": "Resumo mensal", "type": "main", "index": 0 },
+          { "node": "Reconciliacao", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Resumo mensal": { "main": [[{ "node": "Montar prompt e contexto", "type": "main", "index": 0 }]] },
+    "Reconciliacao": { "main": [[{ "node": "Montar prompt e contexto", "type": "main", "index": 0 }]] },
+    "Montar prompt e contexto": { "main": [[{ "node": "OpenAI Chat", "type": "main", "index": 0 }]] },
+    "OpenAI Chat": { "main": [[{ "node": "Extrair relatório", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {},
+  "meta": {},
+  "tags": []
+}

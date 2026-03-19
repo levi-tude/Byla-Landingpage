@@ -1,0 +1,113 @@
+{
+  "name": "Gerar token update Pluggy",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "id": "manual-trigger-1",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pluggy.ai/auth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"clientId\": \"a331a598-b662-4ea5-bb44-c2dc384971c2\",\n  \"clientSecret\": \"6f64c3b5-6fb8-489f-b1fb-43432a336772\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [460, 300],
+      "id": "auth-pluggy-1",
+      "name": "Auth Pluggy"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "itemId",
+              "value": "35967bf3-89d9-4f26-ad2c-5009e86c533f",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "apiKey",
+              "value": "={{ $json.apiKey || $json.accessToken || $json.token }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [680, 300],
+      "id": "set-creds-1",
+      "name": "Set itemId e apiKey"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pluggy.ai/connect_token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $json.apiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"itemId\": \"{{ $json.itemId }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [900, 300],
+      "id": "create-connect-token-1",
+      "name": "Create Connect Token"
+    },
+    {
+      "parameters": {
+        "jsCode": "const token = $input.item.json;\nconst prev = $('Set itemId e apiKey').first().json;\nconst accessToken = token.accessToken || token.token;\nconst itemId = prev.itemId;\nif (!accessToken) throw new Error('Resposta da API não trouxe accessToken');\nreturn {\n  json: {\n    accessToken,\n    itemId,\n    instrucao: 'Abra o arquivo docs/pluggy-connect-update.html no navegador e cole o accessToken (e itemId se pedido). Depois rode o workflow BYLA - Pluggy para Supabase.'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "id": "output-1",
+      "name": "Saída token e itemId"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Auth Pluggy", "type": "main", "index": 0 }]]
+    },
+    "Auth Pluggy": {
+      "main": [[{ "node": "Set itemId e apiKey", "type": "main", "index": 0 }]]
+    },
+    "Set itemId e apiKey": {
+      "main": [[{ "node": "Create Connect Token", "type": "main", "index": 0 }]]
+    },
+    "Create Connect Token": {
+      "main": [[{ "node": "Saída token e itemId", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {},
+  "versionId": "",
+  "meta": {},
+  "id": "",
+  "tags": []
+}

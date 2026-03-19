@@ -1,0 +1,4 @@
+Data,Pessoa,Valor,Descrição,Tipo
+2026-02-23,MARIA SILVA,230,PIX,entrada
+2026-02-23,JOÃO PAGADOR,95,PIX,entrada
+2026-02-22,PAGAMENTO LOJA,50,Débito,saida
