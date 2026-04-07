@@ -130,3 +130,14 @@ git push origin main
 
 - Deploy Render: `docs/PLANO_DEPLOY_RENDER_BYLA.md`
 - `.gitignore` na raiz (env, credenciais)
+
+---
+
+## GitHub: limite de 100 MB por arquivo
+
+Se o `git push` for recusado com **large files** (ex.: JARs em `metabase/`), o GitHub não aceita. Solução aplicada neste repo:
+
+- Incluir a pasta em **`.gitignore`** (ex.: `metabase/`).
+- Remover do **histórico** com `git filter-branch` ou `git filter-repo` e depois `git push --force` (só com equipe alinhada — reescreve histórico).
+
+Nunca versionar instaladores locais pesados; use release oficial ou download separado.
