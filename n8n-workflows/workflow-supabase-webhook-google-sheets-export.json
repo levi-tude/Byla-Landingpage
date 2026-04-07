@@ -1,0 +1,296 @@
+{
+  "name": "BYLA - Supabase INSERT transacoes → Google Sheets (export oficial)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "byla-transacao-export",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-656, 112],
+      "id": "bf2664c6-7c6c-48d7-8ab7-04bd7ae68ce9",
+      "name": "Webhook Supabase",
+      "webhookId": "a5ca3d69-6776-4a24-8a05-79c08f494ef6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Database Webhook Supabase: { type, table, record, schema, old_record }\nconst raw = $input.first().json;\nconst body = raw.body ?? raw;\nif (body.type !== 'INSERT' || body.table !== 'transacoes' || !body.record?.id) {\n  return [{ json: { proceed: false, reason: 'not_insert_transacoes' } }];\n}\nreturn [{ json: { id: body.record.id, proceed: true } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-448, 112],
+      "id": "73c79b63-22d1-4565-9f51-7397deda093c",
+      "name": "Validar INSERT transacoes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "proceed",
+              "leftValue": "={{ $json.proceed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-224, 112],
+      "id": "156447fe-7391-49be-b7b2-8212dfb38231",
+      "name": "É INSERT válido?"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": false,
+        "resource": "row",
+        "operation": "get",
+        "tableId": "v_transacoes_export",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "16a6b811-2567-4aca-b641-ab1a20f8a057",
+      "name": "GET v_transacoes_export",
+      "credentials": {
+        "supabaseApi": {
+          "id": "kFm03myUmZbWVipn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length) return [{ json: { ok: false, error: 'empty_response' } }];\nlet row = items[0].json;\nif (Array.isArray(row)) row = row[0];\nif (!row || !row.id) return [{ json: { ok: false, error: 'no_row' } }];\nreturn [{ json: { rows: [row] } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "id": "e20a94bf-813a-43f7-a713-ed9581a89cf8",
+      "name": "Preparar payload montar-linhas"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.BYLA_BACKEND_URL || 'http://127.0.0.1:3001') }}/api/planilha-entrada-saida/montar-linhas",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Byla-Sync-Secret",
+              "value": "={{ $env.BYLA_SYNC_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 0],
+      "id": "c8f1a2b3-4d5e-6f70-89ab-cdef01234567",
+      "name": "HTTP POST montar-linhas (backend)",
+      "notesInFlow": true,
+      "notes": "Variáveis de ambiente no n8n: BYLA_BACKEND_URL (ex.: https://seu-backend.com, sem barra no fim) e BYLA_SYNC_SECRET (igual ao BYLA_SYNC_SECRET do backend)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nif (!body.ok || !body.linhas?.length) {\n  return [{ json: { ok: false, error: body.error || 'montar_linhas_failed', raw: body } }];\n}\nreturn [{ json: body.linhas[0] }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "id": "d9e2f3a4-b5c6-7081-92ab-def012345678",
+      "name": "Extrair linhas para Sheets"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "15kAMgVlST_8S-W6o7GRe3nQ9Dv92nJhGERkkVKCvEqg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Movimentações",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [640, 0],
+      "id": "abb0659e-877e-4df6-9252-42e9c4674160",
+      "name": "Append Movimentações",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QyFb66Od1mgc0ins",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, exported: true, id: $('Extrair linhas para Sheets').first().json.id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 0],
+      "id": "859f610f-7dc0-4b21-a91b-4a66f6e0e951",
+      "name": "Resposta OK"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, skipped: true, reason: $json.reason ?? 'unknown' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 208],
+      "id": "15dbc014-5101-4bcf-8a45-126fe228e527",
+      "name": "Resposta skip (200)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Supabase": {
+      "main": [
+        [
+          {
+            "node": "Validar INSERT transacoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar INSERT transacoes": {
+      "main": [
+        [
+          {
+            "node": "É INSERT válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É INSERT válido?": {
+      "main": [
+        [
+          {
+            "node": "GET v_transacoes_export",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta skip (200)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET v_transacoes_export": {
+      "main": [
+        [
+          {
+            "node": "Preparar payload montar-linhas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar payload montar-linhas": {
+      "main": [
+        [
+          {
+            "node": "HTTP POST montar-linhas (backend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP POST montar-linhas (backend)": {
+      "main": [
+        [
+          {
+            "node": "Extrair linhas para Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair linhas para Sheets": {
+      "main": [
+        [
+          {
+            "node": "Append Movimentações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Movimentações": {
+      "main": [
+        [
+          {
+            "node": "Resposta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "90d53bcd-234a-468b-b192-870bc4f4a2d6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6bb28ee64778f6db8971899e3a2519b0fa37b599b83cc4903dd9936a3efe6c7b"
+  },
+  "id": "BGSexgUqk3iEmWtFfIPnv",
+  "tags": []
+}

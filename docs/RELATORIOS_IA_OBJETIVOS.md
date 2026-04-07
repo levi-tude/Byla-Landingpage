@@ -207,7 +207,7 @@ Modelo usado: `gemini-1.5-flash`. Se quiser usar OpenAI em vez disso, defina ape
 
 ## Implementação
 
-- **Backend:** `backend/src/routes/api.ts` — rotas `GET /api/relatorios/mensal`, `GET /api/relatorios/trimestral`, `GET /api/relatorios/anual`. Leitura de `v_resumo_mensal_oficial` (Supabase) e de `GetFluxoCompletoUseCase` (planilha CONTROLE DE CAIXA) por mês.
+- **Backend:** `backend/src/routes/relatorios.ts` (montado em `api.ts`) — rotas `GET /api/relatorios/*` (diário, mensal, trimestral, anual), `GET /api/relatorios/ia-status`, `POST /api/relatorios/gerar-texto-ia`. Leitura de `v_resumo_mensal_oficial` (Supabase) e de `GetFluxoCompletoUseCase` (planilha CONTROLE DE CAIXA) por mês.
 - **Frontend:** Página ou seção "Relatórios" que permite escolher tipo (mensal/trimestral/anual), parâmetros (mês/ano, trimestre/ano, ano) e exibe o JSON e, futuramente, o texto gerado pela IA.
 - **IA:** Em etapa posterior, chamada ao modelo (ex.: OpenAI) com o system/user acima e o JSON do endpoint; exibição do resultado na mesma tela.
 

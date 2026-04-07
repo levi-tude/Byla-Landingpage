@@ -1,0 +1,200 @@
+{
+  "name": "BYLA - Carga inicial (uma vez) v_transacoes_export → Movimentações",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Antes de executar\n\n1. **Supabase** (get many): mesma credencial dos outros fluxos.\n2. **Backend BYLA** acessível pelo n8n: defina no n8n as variáveis de ambiente **BYLA_BACKEND_URL** (ex.: `https://seu-backend.com`, sem barra no fim) e **BYLA_SYNC_SECRET** (igual ao `BYLA_SYNC_SECRET` do `.env` do backend). O fluxo chama `POST /api/planilha-entrada-saida/montar-linhas` para montar as 8 colunas (mesma regra do `npm run sync:entrada-saida`).\n3. **Google Sheets**: conta com acesso à planilha; aba **Movimentações** com cabeçalhos alinhados (ou rode `npx tsx scripts/setupMovimentacoesHeader.ts` no backend).",
+        "height": 260,
+        "width": 420
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-240, -160],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Ler antes de executar"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "78238ea4-f74c-4678-a0d8-9a56b91494f6",
+      "name": "Executar uma vez (carga inicial)"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": false,
+        "resource": "row",
+        "operation": "getAll",
+        "tableId": "v_transacoes_export",
+        "returnAll": false,
+        "limit": 5000,
+        "filterType": "string",
+        "filterString": "order=data.asc",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [224, 0],
+      "id": "245bd226-c13c-4d34-9af0-f81022f2f349",
+      "name": "GET todas v_transacoes_export",
+      "credentials": {
+        "supabaseApi": {
+          "id": "kFm03myUmZbWVipn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rows = items\n  .map((i) => i.json)\n  .filter((row) => row && row.id);\nreturn [{ json: { rows } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 0],
+      "id": "b3396d6d-a9bb-4ddb-bf14-ce8ced7fe366",
+      "name": "Preparar rows para backend"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.BYLA_BACKEND_URL || 'http://127.0.0.1:3001') }}/api/planilha-entrada-saida/montar-linhas",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Byla-Sync-Secret",
+              "value": "={{ $env.BYLA_SYNC_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 0],
+      "id": "e4f5a6b7-c8d9-0e1f-2a3b-4c5d6e7f8091",
+      "name": "HTTP POST montar-linhas (backend)",
+      "notesInFlow": true,
+      "notes": "BYLA_BACKEND_URL + BYLA_SYNC_SECRET no ambiente do n8n."
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nif (!body.ok || !Array.isArray(body.linhas)) {\n  return [{ json: { ok: false, error: 'montar_linhas_failed', raw: body } }];\n}\nreturn body.linhas.map((l) => ({ json: l }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0],
+      "id": "f5a6b7c8-d9e0-1f2a-3b4c-5d6e7f8091a2",
+      "name": "Extrair linhas para Sheets"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "15kAMgVlST_8S-W6o7GRe3nQ9Dv92nJhGERkkVKCvEqg",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Movimentações",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [880, 0],
+      "id": "d2e32f79-35c0-43a6-b92e-30b1d11aab80",
+      "name": "Append Movimentações (lote)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QyFb66Od1mgc0ins",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Executar uma vez (carga inicial)": {
+      "main": [
+        [
+          {
+            "node": "GET todas v_transacoes_export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET todas v_transacoes_export": {
+      "main": [
+        [
+          {
+            "node": "Preparar rows para backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar rows para backend": {
+      "main": [
+        [
+          {
+            "node": "HTTP POST montar-linhas (backend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP POST montar-linhas (backend)": {
+      "main": [
+        [
+          {
+            "node": "Extrair linhas para Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair linhas para Sheets": {
+      "main": [
+        [
+          {
+            "node": "Append Movimentações (lote)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "788ed52e-1501-4e3d-bf71-fa2560387ffb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6bb28ee64778f6db8971899e3a2519b0fa37b599b83cc4903dd9936a3efe6c7b"
+  },
+  "id": "oIjaddormh2bXYdNTp937",
+  "tags": []
+}
