@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Antes de executar\n\n1. **Supabase** (get many): mesma credencial dos outros fluxos.\n2. **Backend BYLA** acessível pelo n8n: defina no n8n as variáveis de ambiente **BYLA_BACKEND_URL** (ex.: `https://seu-backend.com`, sem barra no fim) e **BYLA_SYNC_SECRET** (igual ao `BYLA_SYNC_SECRET` do `.env` do backend). O fluxo chama `POST /api/planilha-entrada-saida/montar-linhas` para montar as 8 colunas (mesma regra do `npm run sync:entrada-saida`).\n3. **Google Sheets**: conta com acesso à planilha; aba **Movimentações** com cabeçalhos alinhados (ou rode `npx tsx scripts/setupMovimentacoesHeader.ts` no backend).",
+        "content": "## Antes de executar\n\n1. **Supabase** (get many): mesma credencial dos outros fluxos.\n2. **Backend BYLA**: URL padrão no JSON = `https://byla-backend.onrender.com`. No **servidor n8n** é **obrigatório** definir **BYLA_SYNC_SECRET** (igual ao Render/backend). Opcional: **BYLA_BACKEND_URL** se usar outro host. Ver `n8n-workflows/HOST_ENV_BYLA.md`.\n3. **Google Sheets**: conta com acesso à planilha; aba **Movimentações** com cabeçalhos alinhados (ou `npm run sheets:movimentacoes-header` no backend).",
         "height": 260,
         "width": 420
       },
@@ -58,7 +58,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.BYLA_BACKEND_URL || 'http://127.0.0.1:3001') }}/api/planilha-entrada-saida/montar-linhas",
+        "url": "={{ ($env.BYLA_BACKEND_URL || 'https://byla-backend.onrender.com') }}/api/planilha-entrada-saida/montar-linhas",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -83,7 +83,7 @@
       "id": "e4f5a6b7-c8d9-0e1f-2a3b-4c5d6e7f8091",
       "name": "HTTP POST montar-linhas (backend)",
       "notesInFlow": true,
-      "notes": "BYLA_BACKEND_URL + BYLA_SYNC_SECRET no ambiente do n8n."
+      "notes": "URL padrão = Render. Host n8n: obrigatório BYLA_SYNC_SECRET. Ver HOST_ENV_BYLA.md"
     },
     {
       "parameters": {

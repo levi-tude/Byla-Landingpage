@@ -52,6 +52,14 @@ Os workflows **`workflow-supabase-webhook-google-sheets-export.json`** e **`work
 
 **Não** commite a service role no repositório.
 
+### Variáveis de ambiente no host do n8n (export → backend)
+
+O node **HTTP POST montar-linhas** envia o header **`X-Byla-Sync-Secret`** a partir de **`$env.BYLA_SYNC_SECRET`**. Essa variável **tem** que existir no processo do n8n (Docker Compose, n8n Cloud, systemd), com o **mesmo** valor de `BYLA_SYNC_SECRET` no Render / `backend/.env`.
+
+A **URL** do backend nos JSON do repositório já usa por padrão **`https://byla-backend.onrender.com`** se `BYLA_BACKEND_URL` não estiver definida. Para outro host, defina `BYLA_BACKEND_URL` no servidor n8n (sem `/` no fim).
+
+Roteiro detalhado: `n8n-workflows/HOST_ENV_BYLA.md`. Teste local do endpoint: `npm run n8n:verify-montar-linhas` (pasta `backend`).
+
 ### Variáveis de ambiente no host (opcional)
 
 Se você ainda usa outros fluxos ou scripts que leem env no servidor n8n, pode manter no Docker / `.env` do host:
