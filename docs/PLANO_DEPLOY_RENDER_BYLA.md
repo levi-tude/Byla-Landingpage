@@ -55,6 +55,9 @@ Se falhar, **não** abra o Blueprint no Render até corrigir o build.
 | `SUPABASE_URL` | `backend/.env` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → **Project Settings → API → service_role** (recomendado em produção). Se no `.env` local só existir anon, crie/copie a service role **só para o painel Render** — não commite. |
 | `GOOGLE_SHEETS_ENTRADA_SAIDA_ID` | `backend/.env` |
+| `GOOGLE_SHEETS_SPREADSHEET_ID` | ID da planilha **FLUXO DE CAIXA BYLA** (igual ao local). Sem isso, telas que unem alunos/modalidades com planilha falham em produção. |
+| `GOOGLE_SHEETS_FLUXO_ID` | ID da planilha **CONTROLE DE CAIXA** (igual ao local). |
+| `GOOGLE_SHEETS_FLUXO_RANGE` | Opcional (ex.: `MARÇO 26!A:Z`). Se vazio, o backend usa padrão. |
 | `GOOGLE_SHEETS_CREDENTIALS_JSON` | Conteúdo JSON da service account (uma string; no Windows, minificar JSON numa linha ou colar no painel). |
 | `BYLA_SYNC_SECRET` | Senha forte **iguais** no Render e no n8n. |
 | `GEMINI_API_KEY` | Opcional (só relatórios IA). |
