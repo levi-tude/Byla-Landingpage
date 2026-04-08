@@ -76,7 +76,6 @@
       "name": "GET v_transacoes_export",
       "credentials": {
         "supabaseApi": {
-          "id": "kFm03myUmZbWVipn",
           "name": "Supabase account"
         }
       }
@@ -109,7 +108,9 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {}
+        "options": {
+          "timeout": 120000
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -118,12 +119,11 @@
       "name": "HTTP POST montar-linhas (backend)",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "byla-sync-secret-placeholder",
-          "name": "BYLA Backend Sync (Header Auth)"
+          "name": "BYLA Backend Sync"
         }
       },
       "notesInFlow": true,
-      "notes": "Credentials → Header Auth: Name = X-Byla-Sync-Secret, Value = mesmo BYLA_SYNC_SECRET do Render. Ajuste a URL aqui se não usar Render. Ver HOST_ENV_BYLA.md"
+      "notes": "Credencial n8n deve chamar **BYLA Backend Sync** (Header Auth: header X-Byla-Sync-Secret). Timeout 120s p/ cold start Render. Ver IMPORT_WORKFLOWS_BYLA.md"
     },
     {
       "parameters": {
@@ -161,7 +161,6 @@
       "name": "Append Movimentações",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "QyFb66Od1mgc0ins",
           "name": "Google Sheets account"
         }
       }
@@ -285,16 +284,13 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "90d53bcd-234a-468b-b192-870bc4f4a2d6",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6bb28ee64778f6db8971899e3a2519b0fa37b599b83cc4903dd9936a3efe6c7b"
+    "templateCredsSetupCompleted": false
   },
-  "id": "BGSexgUqk3iEmWtFfIPnv",
   "tags": []
 }

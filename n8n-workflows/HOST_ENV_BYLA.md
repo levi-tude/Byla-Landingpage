@@ -2,6 +2,8 @@
 
 Os workflows usam credencial nativa **Header Auth** do n8n. O segredo **não** fica no `docker-compose` nem em variável de ambiente do servidor.
 
+**Importação passo a passo:** [IMPORT_WORKFLOWS_BYLA.md](./IMPORT_WORKFLOWS_BYLA.md)
+
 ## 1. Criar a credencial (uma vez)
 
 1. n8n → **Credentials** → **Add credential**.
@@ -9,7 +11,7 @@ Os workflows usam credencial nativa **Header Auth** do n8n. O segredo **não** f
 3. Preencha:
    - **Name** (nome do *header HTTP*): `X-Byla-Sync-Secret` (exatamente assim).
    - **Value**: o mesmo valor de `BYLA_SYNC_SECRET` no Render e no `backend/.env`.
-4. Salve com um nome fácil, ex.: **BYLA Backend Sync**.
+4. Salve a credencial com o nome **exato** **`BYLA Backend Sync`** (assim o JSON do repo associa sozinho). Se já criou com outro nome, renomeie na lista de credenciais **ou** escolha a sua no node HTTP ao importar.
 
 > No import do workflow, se pedir para mapear credencial, escolha esta ou crie outra com os mesmos campos.
 

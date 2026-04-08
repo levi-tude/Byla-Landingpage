@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Antes de executar\n\n1. **Supabase** (get many): mesma credencial dos outros fluxos.\n2. **Backend BYLA**: credencial **Header Auth** — nome do header **X-Byla-Sync-Secret**, valor = `BYLA_SYNC_SECRET` (igual ao Render). URL padrão = Render; altere no node HTTP se precisar. Ver `HOST_ENV_BYLA.md`.\n3. **Google Sheets**: permissão na planilha; aba **Movimentações**.",
+        "content": "## Antes de executar\n\n1. Credencial **BYLA Backend Sync** (Header Auth: nome do header `X-Byla-Sync-Secret`).\n2. Supabase + Google com os nomes **Supabase account** e **Google Sheets account** (ou mapeie no import). Ver **IMPORT_WORKFLOWS_BYLA.md**.\n3. Planilha: aba **Movimentações**.",
         "height": 260,
         "width": 420
       },
@@ -40,7 +40,6 @@
       "name": "GET todas v_transacoes_export",
       "credentials": {
         "supabaseApi": {
-          "id": "kFm03myUmZbWVipn",
           "name": "Supabase account"
         }
       }
@@ -73,7 +72,9 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
-        "options": {}
+        "options": {
+          "timeout": 120000
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -82,12 +83,11 @@
       "name": "HTTP POST montar-linhas (backend)",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "byla-sync-secret-placeholder",
-          "name": "BYLA Backend Sync (Header Auth)"
+          "name": "BYLA Backend Sync"
         }
       },
       "notesInFlow": true,
-      "notes": "Header Auth: X-Byla-Sync-Secret = BYLA_SYNC_SECRET. Ver HOST_ENV_BYLA.md"
+      "notes": "Credencial **BYLA Backend Sync** (Header X-Byla-Sync-Secret). IMPORT_WORKFLOWS_BYLA.md"
     },
     {
       "parameters": {
@@ -125,7 +125,6 @@
       "name": "Append Movimentações (lote)",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "QyFb66Od1mgc0ins",
           "name": "Google Sheets account"
         }
       }
@@ -194,11 +193,8 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "788ed52e-1501-4e3d-bf71-fa2560387ffb",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6bb28ee64778f6db8971899e3a2519b0fa37b599b83cc4903dd9936a3efe6c7b"
+    "templateCredsSetupCompleted": false
   },
-  "id": "oIjaddormh2bXYdNTp937",
   "tags": []
 }

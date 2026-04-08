@@ -8,8 +8,8 @@ Esta pasta guarda os JSON dos workflows do n8n. **Sistema novo (sem Pluggy):** u
 |---------|-----|
 | **workflow-planilha-para-supabase.json** | Planilha Google (aba **Importar**) → Supabase. Qualquer banco. |
 | **workflow-pagbank-edi-para-supabase.json** | API PagBank EDI → Supabase. Só conta PagBank Empresas; precisa de token. |
-| **workflow-supabase-webhook-google-sheets-export.json** | **INSERT** em `transacoes` → backend `montar-linhas` → Sheets **Movimentações**. Credencial n8n **Header Auth** (`X-Byla-Sync-Secret`). [HOST_ENV_BYLA.md](./HOST_ENV_BYLA.md). SQL: `scripts/supabase-mapeamento-categoria-e-view-export.sql`. [docs/N8N_WEBHOOK_EXPORT_PLANILHA.md](../docs/N8N_WEBHOOK_EXPORT_PLANILHA.md). |
-| **workflow-supabase-bulk-export-google-sheets-once.json** | Carga única: mesma credencial HTTP + Sheets. |
+| **workflow-supabase-webhook-google-sheets-export.json** | **INSERT** em `transacoes` → backend `montar-linhas` → Sheets **Movimentações**. Import: [IMPORT_WORKFLOWS_BYLA.md](./IMPORT_WORKFLOWS_BYLA.md). Credencial **BYLA Backend Sync**. [HOST_ENV_BYLA.md](./HOST_ENV_BYLA.md). SQL: `scripts/supabase-mapeamento-categoria-e-view-export.sql`. [docs/N8N_WEBHOOK_EXPORT_PLANILHA.md](../docs/N8N_WEBHOOK_EXPORT_PLANILHA.md). |
+| **workflow-supabase-bulk-export-google-sheets-once.json** | Carga única: mesmas credenciais. |
 
 **Implementação passo a passo:** [docs/IMPLEMENTAR_NOVO_SISTEMA.md](../docs/IMPLEMENTAR_NOVO_SISTEMA.md)
 
