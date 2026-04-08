@@ -94,17 +94,15 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.BYLA_BACKEND_URL || 'https://byla-backend.onrender.com') }}/api/planilha-entrada-saida/montar-linhas",
+        "url": "https://byla-backend.onrender.com/api/planilha-entrada-saida/montar-linhas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "X-Byla-Sync-Secret",
-              "value": "={{ $env.BYLA_SYNC_SECRET }}"
             }
           ]
         },
@@ -118,8 +116,14 @@
       "position": [340, 0],
       "id": "c8f1a2b3-4d5e-6f70-89ab-cdef01234567",
       "name": "HTTP POST montar-linhas (backend)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "byla-sync-secret-placeholder",
+          "name": "BYLA Backend Sync (Header Auth)"
+        }
+      },
       "notesInFlow": true,
-      "notes": "URL padrão = backend Render. Opcional: BYLA_BACKEND_URL no host n8n. Obrigatório no host: BYLA_SYNC_SECRET (header X-Byla-Sync-Secret). Ver n8n-workflows/HOST_ENV_BYLA.md"
+      "notes": "Credentials → Header Auth: Name = X-Byla-Sync-Secret, Value = mesmo BYLA_SYNC_SECRET do Render. Ajuste a URL aqui se não usar Render. Ver HOST_ENV_BYLA.md"
     },
     {
       "parameters": {

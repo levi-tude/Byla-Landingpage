@@ -8,7 +8,7 @@ Este documento é o **roteiro único** para publicar o backend e ligar o n8n. Ca
 
 - Serviço **`byla-backend`** no Render com URL pública HTTPS.
 - **Health** em `GET /health`.
-- **n8n** (`https://n8n.espacobyla.online/`) com `BYLA_BACKEND_URL` + `BYLA_SYNC_SECRET`.
+- **n8n** (`https://n8n.espacobyla.online/`) com credencial **Header Auth** (`X-Byla-Sync-Secret` = `BYLA_SYNC_SECRET` do Render).
 
 ---
 
@@ -85,11 +85,11 @@ Substitua `BASE` pela URL do Render (ex.: `https://byla-backend-xxxx.onrender.co
 
 | # | Ação |
 |---|------|
-| E1 | Variável **`BYLA_BACKEND_URL`** = `BASE` (sem `/` final). |
-| E2 | Variável **`BYLA_SYNC_SECRET`** = mesmo valor do Render. |
-| E3 | Executar workflow de teste (webhook ou manual) e ver linha na planilha. |
+| E1 | Credencial **Header Auth** no n8n: nome do header **`X-Byla-Sync-Secret`**, valor = mesmo **`BYLA_SYNC_SECRET`** do Render (ver `n8n-workflows/HOST_ENV_BYLA.md`). |
+| E2 | Importar / atualizar o workflow; mapear a credencial no node **HTTP POST montar-linhas**. URL padrão no JSON = `BASE` (Render). |
+| E3 | Executar workflow de teste e conferir linha na planilha **Movimentações**. |
 
-**Por quê:** os JSON em `n8n-workflows/` usam `{{ $env.BYLA_BACKEND_URL }}/api/...`. Sem isso o n8n cai em `127.0.0.1:3001` (só válido se o backend rodasse na mesma máquina que o n8n).
+**Por quê:** o segredo fica só nas **Credentials** do n8n; não depende de variável no Docker.
 
 ---
 

@@ -52,13 +52,13 @@ Os workflows **`workflow-supabase-webhook-google-sheets-export.json`** e **`work
 
 **Não** commite a service role no repositório.
 
-### Variáveis de ambiente no host do n8n (export → backend)
+### Credencial n8n (export → backend), sem variável no Docker
 
-O node **HTTP POST montar-linhas** envia o header **`X-Byla-Sync-Secret`** a partir de **`$env.BYLA_SYNC_SECRET`**. Essa variável **tem** que existir no processo do n8n (Docker Compose, n8n Cloud, systemd), com o **mesmo** valor de `BYLA_SYNC_SECRET` no Render / `backend/.env`.
+O node **HTTP POST montar-linhas** usa autenticação **Header Auth**: o header **`X-Byla-Sync-Secret`** vem de uma **Credential** criada no n8n (mesmo valor de `BYLA_SYNC_SECRET` no Render / `backend/.env`). Não é necessário `BYLA_SYNC_SECRET` no `docker-compose`.
 
-A **URL** do backend nos JSON do repositório já usa por padrão **`https://byla-backend.onrender.com`** se `BYLA_BACKEND_URL` não estiver definida. Para outro host, defina `BYLA_BACKEND_URL` no servidor n8n (sem `/` no fim).
+A **URL** no JSON é fixa: **`https://byla-backend.onrender.com/...`**. Para outro host, edite o campo **URL** no próprio node no n8n.
 
-Roteiro detalhado: `n8n-workflows/HOST_ENV_BYLA.md`. Teste local do endpoint: `npm run n8n:verify-montar-linhas` (pasta `backend`).
+Passo a passo: `n8n-workflows/HOST_ENV_BYLA.md`. Teste opcional: `npm run n8n:verify-montar-linhas` (pasta `backend`).
 
 ### Variáveis de ambiente no host (opcional)
 

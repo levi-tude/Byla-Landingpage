@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Antes de executar\n\n1. **Supabase** (get many): mesma credencial dos outros fluxos.\n2. **Backend BYLA**: URL padrão no JSON = `https://byla-backend.onrender.com`. No **servidor n8n** é **obrigatório** definir **BYLA_SYNC_SECRET** (igual ao Render/backend). Opcional: **BYLA_BACKEND_URL** se usar outro host. Ver `n8n-workflows/HOST_ENV_BYLA.md`.\n3. **Google Sheets**: conta com acesso à planilha; aba **Movimentações** com cabeçalhos alinhados (ou `npm run sheets:movimentacoes-header` no backend).",
+        "content": "## Antes de executar\n\n1. **Supabase** (get many): mesma credencial dos outros fluxos.\n2. **Backend BYLA**: credencial **Header Auth** — nome do header **X-Byla-Sync-Secret**, valor = `BYLA_SYNC_SECRET` (igual ao Render). URL padrão = Render; altere no node HTTP se precisar. Ver `HOST_ENV_BYLA.md`.\n3. **Google Sheets**: permissão na planilha; aba **Movimentações**.",
         "height": 260,
         "width": 420
       },
@@ -58,17 +58,15 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.BYLA_BACKEND_URL || 'https://byla-backend.onrender.com') }}/api/planilha-entrada-saida/montar-linhas",
+        "url": "https://byla-backend.onrender.com/api/planilha-entrada-saida/montar-linhas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "X-Byla-Sync-Secret",
-              "value": "={{ $env.BYLA_SYNC_SECRET }}"
             }
           ]
         },
@@ -82,8 +80,14 @@
       "position": [560, 0],
       "id": "e4f5a6b7-c8d9-0e1f-2a3b-4c5d6e7f8091",
       "name": "HTTP POST montar-linhas (backend)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "byla-sync-secret-placeholder",
+          "name": "BYLA Backend Sync (Header Auth)"
+        }
+      },
       "notesInFlow": true,
-      "notes": "URL padrão = Render. Host n8n: obrigatório BYLA_SYNC_SECRET. Ver HOST_ENV_BYLA.md"
+      "notes": "Header Auth: X-Byla-Sync-Secret = BYLA_SYNC_SECRET. Ver HOST_ENV_BYLA.md"
     },
     {
       "parameters": {

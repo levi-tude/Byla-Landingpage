@@ -1,46 +1,37 @@
-# Variáveis no servidor n8n (BYLA)
+# Backend BYLA no n8n — só pela interface (sem Docker / sem `$env`)
 
-Os workflows usam `$env.BYLA_SYNC_SECRET` no header **`X-Byla-Sync-Secret`**. Sem essa variável no **processo** do n8n, o backend responde **401**.
+Os workflows usam credencial nativa **Header Auth** do n8n. O segredo **não** fica no `docker-compose` nem em variável de ambiente do servidor.
 
-A URL do backend já tem **fallback** nos JSON para `https://byla-backend.onrender.com`. Só precisa de env no host se usar outro endereço.
+## 1. Criar a credencial (uma vez)
 
-## Valores
+1. n8n → **Credentials** → **Add credential**.
+2. Procure **Header Auth** (às vezes listado como autenticação HTTP genérica).
+3. Preencha:
+   - **Name** (nome do *header HTTP*): `X-Byla-Sync-Secret` (exatamente assim).
+   - **Value**: o mesmo valor de `BYLA_SYNC_SECRET` no Render e no `backend/.env`.
+4. Salve com um nome fácil, ex.: **BYLA Backend Sync**.
 
-| Variável | Obrigatório | Valor |
-|----------|-------------|--------|
-| `BYLA_SYNC_SECRET` | **Sim** | Igual a `BYLA_SYNC_SECRET` no Render e no `backend/.env`. |
-| `BYLA_BACKEND_URL` | Não | Só se não for usar o Render (ex.: `http://host.docker.internal:3001`). Sem barra no fim. |
+> No import do workflow, se pedir para mapear credencial, escolha esta ou crie outra com os mesmos campos.
 
-## Onde configurar
+## 2. URL do backend
 
-- **Docker Compose** (exemplo):
+O JSON do repositório usa a URL fixa:
 
-```yaml
-services:
-  n8n:
-    environment:
-      - BYLA_SYNC_SECRET=${BYLA_SYNC_SECRET}
-      # - BYLA_BACKEND_URL=https://outro-backend.com   # opcional
-```
+`https://byla-backend.onrender.com/api/planilha-entrada-saida/montar-linhas`
 
-Carregue `BYLA_SYNC_SECRET` de um `.env` ao lado do compose **que não vá para o Git**.
+Se precisar de outro host (ex.: backend só no seu PC), abra o node **HTTP POST montar-linhas (backend)** e altere o campo **URL** na interface — sem Docker.
 
-- **n8n Cloud:** Settings → Environment variables (ou equivalente na sua edição).
+## 3. Sobre `$vars` (Variáveis do n8n)
 
-- **Systemd / bare metal:** exporte no unit file ou no shell que inicia o n8n.
+As **Custom variables** (`$vars`) do n8n existem em **Enterprise / Pro Cloud** em muitos planos. Por isso estes workflows usam **Header Auth**, que funciona na instalação **self-hosted comunitária** comum.
 
-Depois de alterar, **reinicie** o n8n para o processo ler as variáveis.
+## 4. Testar do seu PC (opcional)
 
-## Verificar do seu PC (não configura o n8n)
-
-Na pasta `backend`, com `BYLA_SYNC_SECRET` no `.env`:
+Com `BYLA_SYNC_SECRET` no `backend/.env`:
 
 ```bash
+cd backend
 npm run n8n:verify-montar-linhas
 ```
 
-Confirma que o **Render** aceita o mesmo segredo que você vai colocar no n8n.
-
-## Reimportar workflow
-
-Se o fluxo já estava importado antes desta mudança, **importe de novo** o JSON do repo ou edite o node HTTP Request para usar a mesma URL padrão.
+Confere se o Render aceita o mesmo valor que você colou na credencial.
