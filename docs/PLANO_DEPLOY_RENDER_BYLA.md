@@ -53,7 +53,7 @@ Se falhar, **não** abra o Blueprint no Render até corrigir o build.
 | Variável | Origem típica |
 |----------|----------------|
 | `SUPABASE_URL` | `backend/.env` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `backend/.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → **Project Settings → API → service_role** (recomendado em produção). Se no `.env` local só existir anon, crie/copie a service role **só para o painel Render** — não commite. |
 | `GOOGLE_SHEETS_ENTRADA_SAIDA_ID` | `backend/.env` |
 | `GOOGLE_SHEETS_CREDENTIALS_JSON` | Conteúdo JSON da service account (uma string; no Windows, minificar JSON numa linha ou colar no painel). |
 | `BYLA_SYNC_SECRET` | Senha forte **iguais** no Render e no n8n. |
@@ -85,6 +85,20 @@ Substitua `BASE` pela URL do Render (ex.: `https://byla-backend-xxxx.onrender.co
 | E1 | Variável **`BYLA_BACKEND_URL`** = `BASE` (sem `/` final). |
 | E2 | Variável **`BYLA_SYNC_SECRET`** = mesmo valor do Render. |
 | E3 | Executar workflow de teste (webhook ou manual) e ver linha na planilha. |
+
+**Por quê:** os JSON em `n8n-workflows/` usam `{{ $env.BYLA_BACKEND_URL }}/api/...`. Sem isso o n8n cai em `127.0.0.1:3001` (só válido se o backend rodasse na mesma máquina que o n8n).
+
+---
+
+## Fase G — Frontend (painel Vite)
+
+| # | Ação | Gate |
+|---|------|------|
+| G1 | No **`frontend/.env`** (não commitar), defina **`VITE_BACKEND_URL=https://byla-backend.onrender.com`** (sem `/` no fim). | Telas que usam `backendApi` deixam de acusar “VITE_BACKEND_URL não configurado”. |
+| G2 | **`npm run dev`** de novo (Vite só lê `.env` ao subir). | Alunos / conciliação / fontes batem no Render. |
+| G3 | Se o painel for publicado em **domínio próprio** (ex.: Vercel), inclua a **origem exata** (`https://seu-dominio.com`) em **`CORS_ORIGIN`** no serviço Render (Environment → editar `CORS_ORIGIN`, vírgula entre origens). | Browser não bloqueia por CORS. |
+
+**Por quê:** o cliente HTTP usa `import.meta.env.VITE_BACKEND_URL` (`frontend/src/services/backendApi.ts`). Em produção build (`vite build`), só entram variáveis com prefixo `VITE_` definidas **no ambiente de build** (CI) ou no `.env` local na hora do build.
 
 ---
 
