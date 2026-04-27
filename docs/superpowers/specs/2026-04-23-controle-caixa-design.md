@@ -18,6 +18,8 @@ Tambem devemos elevar o visual da tela para um dashboard mais profissional, com 
    - manter como padrao naquele mes, ou
    - converter para customizado naquele mes.
 4. Mesmo com padrao: usuario continua podendo editar campos, incluir blocos/linhas e adaptar o mes.
+5. Todos os campos monetarios no Controle de Caixa e Fluxo de Caixa devem ser exibidos em BRL (`R$`).
+6. Navegacao e consulta de meses anteriores deve ser facil, com persistencia mensal confiavel.
 
 ## Requisitos funcionais
 
@@ -62,6 +64,12 @@ Regras:
 - Permitir adicionar blocos e linhas extras.
 - Permitir reordenar blocos/linhas.
 - Permitir renomear e remover, com regras de protecao conforme metadado.
+
+### 6) Padrao monetario e historico mensal
+
+- Valores financeiros devem ser apresentados em formato de moeda Real em telas e formularios principais.
+- Parse de entrada deve aceitar texto com ou sem simbolo de moeda (ex.: `R$ 1.234,56`).
+- Seletor de competencia deve facilitar acesso a meses anteriores sem perder o contexto atual.
 
 ## Requisitos nao funcionais
 
