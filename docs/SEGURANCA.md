@@ -1,5 +1,7 @@
 # Segurança BYLA — guia simples
 
+> Versão ainda mais simples: [SEGURANCA_SIMPLES.md](./SEGURANCA_SIMPLES.md)
+
 ## O que estava em risco
 
 1. **Tabela de mapeamento aberta** — Quem tivesse a chave pública (anon) do Supabase podia ler e alterar regras de categorização.
