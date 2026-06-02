@@ -1,7 +1,7 @@
 # Roteiro de teste — Painel Byla
 
-> **Versão recomendada:** abra o **Canvas** no Cursor: `canvases/teste-usuario-byla.canvas.tsx`  
-> (abas, tarefas em cards, checklist e anotações salvas automaticamente).
+> **Versão recomendada (aceite pós-correções):** `canvases/teste-usuario-byla-v2.canvas.tsx` — critérios P0/P1/P2 + roteiro de aceite.  
+> **Versão exploratória (v1):** `canvases/teste-usuario-byla.canvas.tsx`
 
 Este arquivo Markdown é referência/backup. O canvas reúne roteiro + formulário de forma visual.
 
