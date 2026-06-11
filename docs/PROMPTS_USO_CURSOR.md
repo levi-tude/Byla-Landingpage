@@ -2,6 +2,9 @@
 
 Use este arquivo como seu ponto unico de copy/paste para trabalhar comigo com maxima eficiencia.
 
+**Manual completo (modelos, creditos, estrategia):** `MANUAL_IA_CURSOR_BYLA.md`  
+**Gerar versao visual no Canva:** `PROMPT_CANVA_MANUAL_IA_CURSOR.md`
+
 ## 1) Abertura do dia (arranque rapido)
 
 ```txt

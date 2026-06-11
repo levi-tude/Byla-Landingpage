@@ -27,6 +27,9 @@ Este arquivo organiza quais documentos estao ativos e qual usar primeiro.
 
 ## Operacao e setup (ativos)
 
+- `MANUAL_IA_CURSOR_BYLA.md` - Manual de consulta: modelos Cursor, prompts, creditos e estrategia mensal (projeto Byla).
+- `PROMPT_CANVA_MANUAL_IA_CURSOR.md` - Prompt de engenharia de prompt para gerar versao visual no Canva a partir do manual.
+- `PROMPTS_USO_CURSOR.md` - Copy/paste operacional diario com o agente.
 - `SUPABASE_PROJETO_BYLA.md`
 - `DUAS_PLANILHAS_CONFIG.md`
 - `PLANO_BACKEND_E_PLANILHAS_COMPLEMENTO.md`
